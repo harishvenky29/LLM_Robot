@@ -1,0 +1,98 @@
+# ---------------------------------------------------------------------------
+# What the robot "knows" about the house.
+#
+# Coordinates are in metres in the world/odom frame (robot spawns at 0,0 in
+# the hallway facing +x / east). yaw is in degrees, 0 = east, 90 = north.
+#
+#   rooms : axis-aligned bounds [xmin, ymin, xmax, ymax] -> "which room am I in?"
+#   places: named destinations the robot can be sent to (also graph nodes)
+#   nodes : extra waypoints (doorways, hallway junctions) used for routing
+#   edges : straight-line, collision-free connections between nodes/places
+#
+# The robot plans routes with Dijkstra over this graph, so it always goes
+# through doorways instead of trying to drive through walls.
+# ---------------------------------------------------------------------------
+
+start_place: hallway
+
+rooms:
+  living_room: [-10.0,  1.0, -2.0,  7.0]
+  kitchen:     [ -2.0,  1.0,  4.0,  7.0]
+  dining_room: [  4.0,  1.0, 10.0,  7.0]
+  hallway:     [-10.0, -1.0, 10.0,  1.0]
+  bedroom:     [-10.0, -7.0, -3.0, -1.0]
+  bathroom:    [ -3.0, -7.0,  1.0, -1.0]
+  office:      [  1.0, -7.0, 10.0, -1.0]
+
+places:
+  hallway:          {x:  0.0, y:  0.0, yaw:   0, room: hallway,     aliases: [hall, corridor, middle of the house, center]}
+  front_door:       {x: -9.0, y:  0.0, yaw: 180, room: hallway,     aliases: [entrance, door, main door, front entrance]}
+  charging_station: {x:  9.0, y:  0.0, yaw:   0, room: hallway,     aliases: [home, dock, charger, base, charging dock]}
+  living_room:      {x: -6.0, y:  3.5, yaw:  90, room: living_room, aliases: [living room, lounge, sitting room, family room]}
+  sofa:             {x: -6.0, y:  4.3, yaw:  90, room: living_room, aliases: [couch, settee, tv]}
+  kitchen:          {x:  1.0, y:  3.5, yaw:  90, room: kitchen,     aliases: [cooking area]}
+  fridge:           {x:  3.4, y:  5.3, yaw:  90, room: kitchen,     aliases: [refrigerator]}
+  dining_room:      {x:  7.0, y:  3.5, yaw:  90, room: dining_room, aliases: [dining room, dining area]}
+  dining_table:     {x:  7.5, y:  4.0, yaw:  90, room: dining_room, aliases: [dining table, table]}
+  bedroom:          {x: -6.0, y: -3.5, yaw: -90, room: bedroom,     aliases: [bed room, master bedroom]}
+  bed:              {x: -5.6, y: -4.4, yaw: 180, room: bedroom,     aliases: [bedside]}
+  bathroom:         {x: -1.0, y: -3.5, yaw: -90, room: bathroom,    aliases: [toilet, washroom, restroom, loo, wc]}
+  office:           {x:  5.5, y: -3.5, yaw: -90, room: office,      aliases: [study, work room]}
+  desk:             {x:  5.5, y: -5.2, yaw: -90, room: office,      aliases: [computer, work desk]}
+
+nodes:
+  # hallway junctions (y = 0), one in front of every door
+  hall_w6:      {x: -6.0, y:  0.0, room: hallway}
+  hall_m1:      {x: -1.0, y:  0.0, room: hallway}
+  hall_p1:      {x:  1.0, y:  0.0, room: hallway}
+  hall_p55:     {x:  5.5, y:  0.0, room: hallway}
+  hall_p7:      {x:  7.0, y:  0.0, room: hallway}
+  # just inside each hallway door
+  living_door:   {x: -6.0, y:  2.0, room: living_room}
+  kitchen_door:  {x:  1.0, y:  2.0, room: kitchen}
+  dining_door:   {x:  7.0, y:  2.0, room: dining_room}
+  bedroom_door:  {x: -6.0, y: -2.0, room: bedroom}
+  bathroom_door: {x: -1.0, y: -2.0, room: bathroom}
+  office_door:   {x:  5.5, y: -2.0, room: office}
+  # living <-> kitchen door (wall x = -2, door at y = 5)
+  lk_living:    {x: -3.0, y:  5.0, room: living_room}
+  lk_kitchen:   {x: -1.0, y:  5.0, room: kitchen}
+  # kitchen <-> dining open archway (wall x = 4, opening y = 3..5)
+  kd_kitchen:   {x:  3.0, y:  4.0, room: kitchen}
+  kd_dining:    {x:  5.0, y:  4.0, room: dining_room}
+
+edges:
+  # hallway spine, west -> east
+  - [front_door, hall_w6]
+  - [hall_w6, hall_m1]
+  - [hall_m1, hallway]
+  - [hallway, hall_p1]
+  - [hall_p1, hall_p55]
+  - [hall_p55, hall_p7]
+  - [hall_p7, charging_station]
+  # doors off the hallway
+  - [hall_w6, living_door]
+  - [living_door, living_room]
+  - [hall_w6, bedroom_door]
+  - [bedroom_door, bedroom]
+  - [hall_m1, bathroom_door]
+  - [bathroom_door, bathroom]
+  - [hall_p1, kitchen_door]
+  - [kitchen_door, kitchen]
+  - [hall_p55, office_door]
+  - [office_door, office]
+  - [hall_p7, dining_door]
+  - [dining_door, dining_room]
+  # room-to-room shortcuts
+  - [living_room, lk_living]
+  - [lk_living, lk_kitchen]
+  - [lk_kitchen, kitchen]
+  - [kitchen, kd_kitchen]
+  - [kd_kitchen, kd_dining]
+  - [kd_dining, dining_room]
+  # furniture spots
+  - [living_room, sofa]
+  - [kd_kitchen, fridge]
+  - [dining_room, dining_table]
+  - [bedroom, bed]
+  - [office, desk]
